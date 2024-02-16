@@ -21,6 +21,21 @@ for exchange in exchanges_fees.keys():
     else:
         print(f"Failed to fetch data for {exchange}")
 
+# def place_order(exchange, order_type, amount, price):
+#     # Place an order via CoinAPI EMS
+#     # TODO DOUBLE CHECK EMS DOCUMENTATION
+#     url = f"https://ems.coinapi.io/api/v1/orders/place"
+#     data = {
+#         "exchange_id": exchange,
+#         "symbol_id": "BTC/USD",
+#         "order_type": order_type,
+#         "quantity": amount,
+#         "price": price,
+#         # Additional required fields ..
+#     }
+#     response = requests.post(url, headers=headers, json=data)
+#     return response.json()
+
 def find_arbitrage_opportunities(prices):
     best_buy = {'exchange': None, 'effective_rate': float('inf')}
     best_sell = {'exchange': None, 'effective_rate': 0}
@@ -39,7 +54,12 @@ def find_arbitrage_opportunities(prices):
     potential_profit = best_sell['effective_rate'] - best_buy['effective_rate']
 
     if potential_profit > 0:
-        print(f"Arbitrage Opportunity: Buy on {best_buy['exchange']} at ${best_buy['effective_rate']} and sell on {best_sell['exchange']} at ${best_sell['effective_rate']}. Potential profit: ${profit} per BTC")
+        print(f"Arbitrage Opportunity: Buy on {best_buy['exchange']} at ${best_buy['effective_rate']} and sell on {best_sell['exchange']} at ${best_sell['effective_rate']}. Potential profit: ${potential_profit} per BTC")
+        # Order placement
+        # buy_response = place_order(best_buy['exchange'], "buy", 1, best_buy['effective_rate'])
+        # sell_response = place_order(best_sell['exchange'], "sell", 1, best_sell['effective_rate'])
+        # print(f"Buy Order Response: {buy_response}")
+        # print(f"Sell Order Response: {sell_response}")
     else:
         print("No arbitrage opportunities found.")
 
