@@ -1,11 +1,20 @@
 -- Buy, transfer, then sell is too slow. Use offline arbitrage method
 
+-- Make market order instead of limit orders bc limit orders won't get filled in time
+
+-- Instead of CoinAPI.io I think have to use individual API for each exchange:
+- Look into https://github.com/ccxt/ccxt - BETTER THAN ConAPI.io
+- https://www.kucoin.com/docs/beginners/hftrading
+- Coinbase PRO API
+- https://poloniex.com/
+- https://docs.gemini.com/rest-api/#new-order
+
+- personal: https://www.octobot.cloud/
+
 
 -- MAKE MULTI-THREADED?
 
-
 -- ADD PROMPT TO ENTER MULTIPLE EXCHANGES, COINS?
-
 
 -- GO MORE IN DEPTH IN find_arbitrage_opportunities
 1. Market Depth and Order Size
