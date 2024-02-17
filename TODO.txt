@@ -1,6 +1,11 @@
+-- Buy, transfer, then sell is too slow. Use offline arbitrage method
+
+
 -- MAKE MULTI-THREADED?
 
--- ADD PROMPT TO ENTER MULTIPLE EXCHANGES, COINS
+
+-- ADD PROMPT TO ENTER MULTIPLE EXCHANGES, COINS?
+
 
 -- GO MORE IN DEPTH IN find_arbitrage_opportunities
 1. Market Depth and Order Size
