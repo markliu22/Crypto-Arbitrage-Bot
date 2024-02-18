@@ -1,1 +1,1 @@
-Crypto arbitrage trading bot using CoinAPI.io
+Crypto arbitrage trading bot using https://github.com/ccxt/ccxt
