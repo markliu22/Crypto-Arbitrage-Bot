@@ -4,11 +4,11 @@ import asyncio
 # Initialize exchanges with ccxt
 exchanges = {
     'bitstamp': ccxt.bitstamp(),
-    'coinbasepro': ccxt.coinbasepro(),  # Note: Coinbase Pro is used instead of Coinbase as it's what ccxt interfaces with
+    'coinbasepro': ccxt.coinbasepro(),
     'kraken': ccxt.kraken(),
 }
 
-# Define trading fees for each exchange (assumed values, please verify with the actual exchange)
+# TODO: double check trading fees for each exchange
 exchanges_fees = {
     'bitstamp': {'trading_fee': 0.25, 'withdrawal_fee': 5.00},
     'coinbasepro': {'trading_fee': 0.50, 'withdrawal_fee': 2.50},
@@ -20,7 +20,6 @@ async def fetch_prices():
     for exchange_id in exchanges:
         exchange = exchanges[exchange_id]
         try:
-            # Fetch the ticker for BTC/USD
             ticker = exchange.fetch_ticker('BTC/USD')
             last_price = ticker['last']
             prices[exchange_id] = {'rate': last_price, **exchanges_fees[exchange_id]}
