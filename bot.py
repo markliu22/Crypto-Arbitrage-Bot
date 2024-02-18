@@ -47,13 +47,24 @@ async def fetch_prices():
     print("Finished fetching prices.")
     return prices
 
-# TODO
-def place_order(exchange_id, side, amount, price):
-    # This function needs to be called within an asyncio event loop if using async exchange instances
-    # For demonstration purposes, we're assuming synchronous execution for order placement
-    print(f"Placing order on {exchange_id}: {side} {amount} @ {price}")
+async def place_order(exchange_id, side, amount, symbol='BTC/USD'):
+    exchange = exchanges[exchange_id]
+    print(f"Attempting to place a {side} order for {amount} of {symbol} on {exchange_id}...")
+    
+    try:
+        if side == 'buy':
+            # For a market buy order, 'price' parameter is not needed.
+            # Ensure your exchange and ccxt version supports market orders via create_market_buy_order
+            order = await exchange.create_market_buy_order(symbol, amount)
+        elif side == 'sell':
+            # For a market sell order, similar to buy, 'price' parameter is not needed.
+            order = await exchange.create_market_sell_order(symbol, amount)
+        
+        print(f"Order placed on {exchange_id}: {order}")
+    except Exception as e:
+        print(f"Failed to place order on {exchange_id}: {e}")
 
-def find_arbitrage_opportunities(prices):
+async def find_arbitrage_opportunities(prices):
     print("Analyzing arbitrage opportunities...")
     best_buy = {'exchange': None, 'effective_rate': float('inf'), 'price': None}
     best_sell = {'exchange': None, 'effective_rate': 0, 'price': None}
@@ -73,9 +84,9 @@ def find_arbitrage_opportunities(prices):
         print(f"Arbitrage Opportunity: Buy on {best_buy['exchange']} at ${best_buy['effective_rate']} and sell on {best_sell['exchange']} at ${best_sell['effective_rate']}. Potential profit: ${potential_profit} per BTC")
         # TODO: update order_amount, ensure this is appropriate
         order_amount = 0.01  # BTC
-        # Note: Actual order placement logic should be implemented here
-        # place_order(best_buy['exchange'], 'buy', order_amount, best_buy['price'])
-        # place_order(best_sell['exchange'], 'sell', order_amount, best_sell['price'])
+        # Place the buy and sell orders asynchronously
+        await place_order(best_buy['exchange'], 'buy', order_amount)
+        await place_order(best_sell['exchange'], 'sell', order_amount)
     else:
         print("No arbitrage opportunities found.")
 
@@ -92,10 +103,9 @@ async def main():
 ▒░▒   ░▓██ ░▒░    ░  ░      ░  ░ ▒ ▒░   ░▒ ░ ▒░░ ░▒ ▒░   ░ ░ ▒  ░ ▒   ▒▒ ░░░▒░ ░ ░ 
  ░    ░▒ ▒ ░░     ░      ░   ░ ░ ░ ▒    ░░   ░ ░ ░░ ░      ░ ░    ░   ▒    ░░░ ░ ░ 
  ░     ░ ░               ░       ░ ░     ░     ░  ░          ░  ░     ░  ░   ░     
-      ░░ ░                                                                         
-""")
+      ░░ ░                                                                          """)
     prices = await fetch_prices()
-    find_arbitrage_opportunities(prices)
+    await find_arbitrage_opportunities(prices)  # Updated to await the async function call
     print("Closing exchanges...")
     await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
     print("Bot execution completed.")
