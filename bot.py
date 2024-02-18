@@ -1,13 +1,11 @@
-import ccxt
 import asyncio
+import ccxt.async_support as ccxt  # Use async_support for asynchronous operations
 
 from config import (BITSTAMP_API_KEY, BITSTAMP_SECRET, COINBASEPRO_API_KEY, 
-                    COINBASEPRO_SECRET,KRAKEN_API_KEY, KRAKEN_SECRET)
+                    COINBASEPRO_SECRET, KRAKEN_API_KEY, KRAKEN_SECRET)
 
-# Initialize exchanges with ccxt
-# Initialize exchanges with ccxt and API credentials
+# Initialize exchanges with ccxt.async_support and API credentials
 exchanges = {
-    # 'bitstamp': ccxt.bitstamp({'apiKey': 'YOUR_BITSTAMP_API_KEY', 'secret': 'YOUR_BITSTAMP_SECRET'}),
     'coinbasepro': ccxt.coinbasepro({'apiKey': COINBASEPRO_API_KEY, 'secret': COINBASEPRO_SECRET}),
     'kraken': ccxt.kraken({'apiKey': KRAKEN_API_KEY, 'secret': KRAKEN_SECRET}),
 }
@@ -19,57 +17,44 @@ exchanges_fees = {
     'kraken': {'trading_fee': 0.26, 'withdrawal_fee': 0.00},
 }
 
-async def fetch_prices():
-    prices = {}
-    tasks = []  # List to hold our tasks for asynchronous execution
+async def fetch_ticker(exchange, symbol='BTC/USD'):
+    print(f"Fetching ticker for {symbol} from {exchange.id}...")
+    try:
+        ticker = await exchange.fetch_ticker(symbol)
+        print(f"Successfully fetched ticker from {exchange.id}.")
+        return exchange.id, ticker
+    except Exception as e:
+        print(f"Failed to fetch data for {exchange.id}: {e}")
+        return exchange.id, None
 
-    # Create a coroutine for each exchange to fetch the ticker
-    for exchange_id in exchanges:
-        exchange = exchanges[exchange_id]
-        task = asyncio.create_task(fetch_ticker(exchange, exchange_id))
+async def fetch_prices():
+    print("Starting to fetch prices...")
+    prices = {}
+    tasks = []
+
+    for exchange_id, exchange in exchanges.items():
+        task = fetch_ticker(exchange, 'BTC/USD')
         tasks.append(task)
     
-    # Wait for all tasks(coroutines) to complete
     results = await asyncio.gather(*tasks)
 
-    # Process results
-    for result in results:
-        exchange_id, ticker = result
-        if ticker:  # If ticker fetch was successful
+    for exchange_id, ticker in results:
+        if ticker:
             last_price = ticker['last']
-            prices[exchange_id] = {'rate': last_price, **exchanges_fees[exchange_id]}
+            prices[exchange_id] = {'rate': last_price, **exchanges_fees.get(exchange_id, {})}
+            print(f"Price for {exchange_id}: {last_price}")
     
+    print("Finished fetching prices.")
     return prices
 
-# Helper coroutine to fetch ticker for each exchange
-async def fetch_ticker(exchange, exchange_id):
-    try:
-        ticker = await exchange.fetch_ticker('BTC/USD')
-        return exchange_id, ticker
-    except Exception as e:
-        print(f"Failed to fetch data for {exchange_id}: {e}")
-        return exchange_id, None
-    
-# Ensure to properly close the exchange connections
-async def close_exchanges():
-    await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
-
+# TODO
 def place_order(exchange_id, side, amount, price):
-    exchange = exchanges[exchange_id]
-    symbol = 'BTC/USD'  # TODO: double check symbol is correct for exchange
-    type = 'market'  # 'limit' rarely every gets filled
-    
-    try:
-        if side == 'buy':
-            # TODO: Adjust 'amount' based on your strategy and capital management
-            order = exchange.create_limit_buy_order(symbol, amount, price)
-        else:
-            order = exchange.create_limit_sell_order(symbol, amount, price)
-        print(f"Order placed on {exchange_id}: {order}")
-    except Exception as e:
-        print(f"Failed to place order on {exchange_id}: {e}")
+    # This function needs to be called within an asyncio event loop if using async exchange instances
+    # For demonstration purposes, we're assuming synchronous execution for order placement
+    print(f"Placing order on {exchange_id}: {side} {amount} @ {price}")
 
 def find_arbitrage_opportunities(prices):
+    print("Analyzing arbitrage opportunities...")
     best_buy = {'exchange': None, 'effective_rate': float('inf'), 'price': None}
     best_sell = {'exchange': None, 'effective_rate': 0, 'price': None}
 
@@ -88,15 +73,32 @@ def find_arbitrage_opportunities(prices):
         print(f"Arbitrage Opportunity: Buy on {best_buy['exchange']} at ${best_buy['effective_rate']} and sell on {best_sell['exchange']} at ${best_sell['effective_rate']}. Potential profit: ${potential_profit} per BTC")
         # TODO: update order_amount, ensure this is appropriate
         order_amount = 0.01  # BTC
-        place_order(best_buy['exchange'], 'buy', order_amount, best_buy['price'])
-        place_order(best_sell['exchange'], 'sell', order_amount, best_sell['price'])
+        # Note: Actual order placement logic should be implemented here
+        # place_order(best_buy['exchange'], 'buy', order_amount, best_buy['price'])
+        # place_order(best_sell['exchange'], 'sell', order_amount, best_sell['price'])
     else:
         print("No arbitrage opportunities found.")
 
 async def main():
+    print("Starting arbitrage bot...")
+    # ref for ASCII art: https://patorjk.com/software/taag/#p=display&f=Bloody&t=by%20mork%20lau
+    print("""
+ ▄▄▄▄ ▓██   ██▓    ███▄ ▄███▓ ▒█████   ██▀███   ██ ▄█▀    ██▓    ▄▄▄       █    ██ 
+▓█████▄▒██  ██▒   ▓██▒▀█▀ ██▒▒██▒  ██▒▓██ ▒ ██▒ ██▄█▒    ▓██▒   ▒████▄     ██  ▓██▒
+▒██▒ ▄██▒██ ██░   ▓██    ▓██░▒██░  ██▒▓██ ░▄█ ▒▓███▄░    ▒██░   ▒██  ▀█▄  ▓██  ▒██░
+▒██░█▀  ░ ▐██▓░   ▒██    ▒██ ▒██   ██░▒██▀▀█▄  ▓██ █▄    ▒██░   ░██▄▄▄▄██ ▓▓█  ░██░
+░▓█  ▀█▓░ ██▒▓░   ▒██▒   ░██▒░ ████▓▒░░██▓ ▒██▒▒██▒ █▄   ░██████▒▓█   ▓██▒▒▒█████▓ 
+░▒▓███▀▒ ██▒▒▒    ░ ▒░   ░  ░░ ▒░▒░▒░ ░ ▒▓ ░▒▓░▒ ▒▒ ▓▒   ░ ▒░▓  ░▒▒   ▓▒█░░▒▓▒ ▒ ▒ 
+▒░▒   ░▓██ ░▒░    ░  ░      ░  ░ ▒ ▒░   ░▒ ░ ▒░░ ░▒ ▒░   ░ ░ ▒  ░ ▒   ▒▒ ░░░▒░ ░ ░ 
+ ░    ░▒ ▒ ░░     ░      ░   ░ ░ ░ ▒    ░░   ░ ░ ░░ ░      ░ ░    ░   ▒    ░░░ ░ ░ 
+ ░     ░ ░               ░       ░ ░     ░     ░  ░          ░  ░     ░  ░   ░     
+      ░░ ░                                                                         
+""")
     prices = await fetch_prices()
     find_arbitrage_opportunities(prices)
-    await close_exchanges()
+    print("Closing exchanges...")
+    await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
+    print("Bot execution completed.")
 
 # Run the async main function
 asyncio.run(main())
