@@ -1,5 +1,6 @@
 import asyncio
-import ccxt.async_support as ccxt  # Use async_support for asynchronous operations
+import ccxt.async_support as ccxt
+import math
 
 from config import (BITSTAMP_API_KEY, BITSTAMP_SECRET, COINBASEPRO_API_KEY, 
                     COINBASEPRO_SECRET, KRAKEN_API_KEY, KRAKEN_SECRET)
@@ -10,7 +11,6 @@ exchanges = {
     'kraken': ccxt.kraken({'apiKey': KRAKEN_API_KEY, 'secret': KRAKEN_SECRET}),
 }
 
-# Adjusted for demonstration; ensure these are correct and include other necessary parameters for your accounts.
 exchanges_fees = {
     'bitstamp': {'trading_fee': 0.25, 'withdrawal_fee': 5.00},
     'coinbasepro': {'trading_fee': 0.50, 'withdrawal_fee': 2.50},
@@ -53,62 +53,79 @@ async def place_order(exchange_id, side, amount, symbol='BTC/USD'):
     
     try:
         if side == 'buy':
-            # For a market buy order, 'price' parameter is not needed.
-            # Ensure your exchange and ccxt version supports market orders via create_market_buy_order
             order = await exchange.create_market_buy_order(symbol, amount)
         elif side == 'sell':
-            # For a market sell order, similar to buy, 'price' parameter is not needed.
             order = await exchange.create_market_sell_order(symbol, amount)
         
         print(f"Order placed on {exchange_id}: {order}")
     except Exception as e:
         print(f"Failed to place order on {exchange_id}: {e}")
 
+def build_graph(prices):
+    graph = {}
+    for src in prices:
+        graph[src] = {}
+        for dst in prices:
+            if src != dst:
+                rate = prices[dst]['rate'] / prices[src]['rate']
+                fee = (1 + prices[src]['trading_fee'] / 100) * (1 - prices[dst]['trading_fee'] / 100) - prices[src]['withdrawal_fee'] / prices[src]['rate']
+                graph[src][dst] = -math.log(rate * fee)
+    return graph
+
+def bellman_ford(graph, start):
+    # 1) Initialize distances from start to all other nodes as INFINITE
+    distance = {node: float('inf') for node in graph}
+    predecessor = {node: None for node in graph}
+    distance[start] = 0
+
+    # 2) Relax all edges |V| - 1 times.
+    for _ in range(len(graph) - 1):
+        for u in graph:
+            for v in graph[u]:
+                if distance[u] + graph[u][v] < distance[v]:
+                    distance[v] = distance[u] + graph[u][v]
+                    predecessor[v] = u
+
+    # 3) Check for negative-weight cycles.
+    for u in graph:
+        for v in graph[u]:
+            if distance[u] + graph[u][v] < distance[v]:
+                # Negative cycle detected, reconstruct cycle
+                arbitrage_opportunity = []
+                current = v
+                while True:
+                    arbitrage_opportunity.append(current)
+                    current = predecessor[current]
+                    if current == v and len(arbitrage_opportunity) > 1:
+                        arbitrage_opportunity.append(current)
+                        break
+                arbitrage_opportunity.reverse()
+                return arbitrage_opportunity
+
+    return None
+
 async def find_arbitrage_opportunities(prices):
     print("Analyzing arbitrage opportunities...")
-    best_buy = {'exchange': None, 'effective_rate': float('inf'), 'price': None}
-    best_sell = {'exchange': None, 'effective_rate': 0, 'price': None}
+    graph = build_graph(prices)
+    start_node = next(iter(graph)) # Start with any node
 
-    for exchange, info in prices.items():
-        effective_buy_rate = info['rate'] * (1 + info['trading_fee'] / 100)
-        effective_sell_rate = info['rate'] * (1 - info['trading_fee'] / 100) - info['withdrawal_fee']
-
-        if effective_buy_rate < best_buy['effective_rate']:
-            best_buy = {'exchange': exchange, 'effective_rate': effective_buy_rate, 'price': info['rate']}
-        if effective_sell_rate > best_sell['effective_rate']:
-            best_sell = {'exchange': exchange, 'effective_rate': effective_sell_rate, 'price': info['rate']}
-
-    potential_profit = best_sell['effective_rate'] - best_buy['effective_rate']
-
-    if potential_profit > 0:
-        print(f"Arbitrage Opportunity: Buy on {best_buy['exchange']} at ${best_buy['effective_rate']} and sell on {best_sell['exchange']} at ${best_sell['effective_rate']}. Potential profit: ${potential_profit} per BTC")
-        # TODO: update order_amount, ensure this is appropriate
+    arbitrage_opportunity = bellman_ford(graph, start_node)
+    if arbitrage_opportunity:
+        print(f"Arbitrage Opportunity Detected: {arbitrage_opportunity}")
+        # Place orders
         order_amount = 0.01  # BTC
-        # Place the buy and sell orders asynchronously
-        await place_order(best_buy['exchange'], 'buy', order_amount)
-        await place_order(best_sell['exchange'], 'sell', order_amount)
+        for i in range(len(arbitrage_opportunity) - 1):
+            await place_order(arbitrage_opportunity[i], 'buy', order_amount)
+            await place_order(arbitrage_opportunity[i+1], 'sell', order_amount)
     else:
         print("No arbitrage opportunities found.")
 
 async def main():
     print("Starting arbitrage bot...")
-    # ref for ASCII art: https://patorjk.com/software/taag/#p=display&f=Bloody&t=by%20mork%20lau
-    print("""
- ▄▄▄▄ ▓██   ██▓    ███▄ ▄███▓ ▒█████   ██▀███   ██ ▄█▀    ██▓    ▄▄▄       █    ██ 
-▓█████▄▒██  ██▒   ▓██▒▀█▀ ██▒▒██▒  ██▒▓██ ▒ ██▒ ██▄█▒    ▓██▒   ▒████▄     ██  ▓██▒
-▒██▒ ▄██▒██ ██░   ▓██    ▓██░▒██░  ██▒▓██ ░▄█ ▒▓███▄░    ▒██░   ▒██  ▀█▄  ▓██  ▒██░
-▒██░█▀  ░ ▐██▓░   ▒██    ▒██ ▒██   ██░▒██▀▀█▄  ▓██ █▄    ▒██░   ░██▄▄▄▄██ ▓▓█  ░██░
-░▓█  ▀█▓░ ██▒▓░   ▒██▒   ░██▒░ ████▓▒░░██▓ ▒██▒▒██▒ █▄   ░██████▒▓█   ▓██▒▒▒█████▓ 
-░▒▓███▀▒ ██▒▒▒    ░ ▒░   ░  ░░ ▒░▒░▒░ ░ ▒▓ ░▒▓░▒ ▒▒ ▓▒   ░ ▒░▓  ░▒▒   ▓▒█░░▒▓▒ ▒ ▒ 
-▒░▒   ░▓██ ░▒░    ░  ░      ░  ░ ▒ ▒░   ░▒ ░ ▒░░ ░▒ ▒░   ░ ░ ▒  ░ ▒   ▒▒ ░░░▒░ ░ ░ 
- ░    ░▒ ▒ ░░     ░      ░   ░ ░ ░ ▒    ░░   ░ ░ ░░ ░      ░ ░    ░   ▒    ░░░ ░ ░ 
- ░     ░ ░               ░       ░ ░     ░     ░  ░          ░  ░     ░  ░   ░     
-      ░░ ░                                                                          """)
     prices = await fetch_prices()
-    await find_arbitrage_opportunities(prices)  # Updated to await the async function call
+    await find_arbitrage_opportunities(prices)
     print("Closing exchanges...")
     await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
     print("Bot execution completed.")
 
-# Run the async main function
 asyncio.run(main())
