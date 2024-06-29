@@ -1,1 +1,1 @@
-Crypto arbitrage trading bot using https://github.com/ccxt/ccxt
+Crypto trading bot finding arbitrage opprtunities using Bellman Ford.
