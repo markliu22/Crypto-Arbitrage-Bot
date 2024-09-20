@@ -1,5 +1,0 @@
--- Buy, transfer, then sell is too slow. Use offline arbitrage method
-
--- Make market order instead of limit orders bc limit orders won't get filled in time
-
--- handle nuances like checking balances before placing orders, slippage, or order book depth

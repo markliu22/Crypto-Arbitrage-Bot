@@ -1,1 +1,1 @@
-Crypto trading bot finding arbitrage opprtunities using Bellman Ford.
+Cryptocurrency trading bot to find arbitrage opportunities using Bellman Ford.
