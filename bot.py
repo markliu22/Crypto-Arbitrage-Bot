@@ -142,11 +142,17 @@ async def find_arbitrage_opportunities(prices):
 
 async def main():
     print("Starting arbitrage bot...")
-    prices = await fetch_prices()
-    await find_arbitrage_opportunities(prices)
-    print("Closing exchanges...")
-    await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
-    print("Bot execution completed.")
+    try:
+        while True:
+            prices = await fetch_prices()
+            await find_arbitrage_opportunities(prices)
+            await asyncio.sleep(10)
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    finally:
+        print("Closing exchanges...")
+        await asyncio.gather(*(exchange.close() for exchange in exchanges.values()))
+        print("Execution completed.")
 
 
 asyncio.run(main())
