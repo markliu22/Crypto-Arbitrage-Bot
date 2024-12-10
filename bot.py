@@ -7,14 +7,17 @@ from config import (
     COINBASEPRO_SECRET,
     KRAKEN_API_KEY,
     KRAKEN_SECRET,
+    OKX_API_KEY,
+    OKX_SECRET,
+    KUCOIN_API_KEY,
+    KUCOIN_SECRET,
 )
 
-# Initialize exchanges with ccxt.async_support and API credentials
 exchanges = {
-    "coinbasepro": ccxt.coinbasepro(
-        {"apiKey": COINBASEPRO_API_KEY, "secret": COINBASEPRO_SECRET}
-    ),
+    "coinbasepro": ccxt.coinbasepro({"apiKey": COINBASEPRO_API_KEY, "secret": COINBASEPRO_SECRET}),
     "kraken": ccxt.kraken({"apiKey": KRAKEN_API_KEY, "secret": KRAKEN_SECRET}),
+    "okx": ccxt.kraken({"apiKey": OKX_API_KEY, "secret": OKX_SECRET}),
+    "kucoin": ccxt.kucoin({"apiKey": KUCOIN_API_KEY, "secret": KUCOIN_SECRET}),
 }
 
 exchanges_fees = {
@@ -132,7 +135,7 @@ async def find_arbitrage_opportunities(prices):
     if arbitrage_opportunity:
         print(f"Arbitrage Opportunity Detected: {arbitrage_opportunity}")
         # Place orders
-        order_amount = 0.01  # BTC
+        order_amount = 0.001
         for i in range(len(arbitrage_opportunity) - 1):
             await place_order(arbitrage_opportunity[i], "buy", order_amount)
             await place_order(arbitrage_opportunity[i + 1], "sell", order_amount)
